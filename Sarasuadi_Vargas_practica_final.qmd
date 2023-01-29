@@ -1,0 +1,149 @@
+---
+title: "practica_final"
+format: html
+editor: visual
+---
+
+Vamos a utilizar el dataset de semillas que se encuentra aquí: https://archive.ics.uci.edu/ml/datasets/seeds#
+
+Primero vamos a descargarnos el dataset con el siguiente comando:
+
+```{r}
+library(tidyverse)
+df_seeds <- read.table('https://archive.ics.uci.edu/ml/machine-learning-databases/00236/seeds_dataset.txt', col.names =c('area','perimetro','compacto','longitud','anchura','coeficient.asimetria','longitud.ranura','tipo'))
+```
+
+#### PREGUNTA 1
+
+¿Cuantas filas y cuantas columnas tiene el dataframe df_seeds?
+
+**Respuesta**: 210 filas y 8 columnas
+
+```{r}
+str(df_seeds)
+```
+
+#### PREGUNTA 2
+
+Vamos a convertir en factor la columna tipo. Vamos a reemplazar los números por su correspondiente etiqueta (label). La correspondencia entre el código y el tipo es:
+
+-   1 - Kama
+-   2 - Rosa
+-   3 - Canadian
+
+Convierte en factor la columna tipo, respetando las etiquetas:
+
+**Respuesta**:
+
+```{r}
+df_seeds$tipo <- factor(df_seeds$tipo, labels = c("Kama", "Rosa", "Canadian"))
+```
+
+#### PREGUNTA 3
+
+¿Cual es la media del área de cada uno de los tipos?
+
+**Respuesta**
+
+```{r}
+df_seeds |> group_by(tipo) |> summarize(area_medio=mean(area))
+```
+
+#### PREGUNTA 4
+
+¿Como se llama el siguiente tipo de gráfico?. ¿Qué representa la línea del centro de la caja?
+
+```{r}
+ggplot(df_seeds, aes(x=tipo, y=area)) + geom_boxplot()
+```
+
+**Respuesta**: Es un Diagrama de Caja y la línea del centro de la caja representa la mediana o valor central.
+
+#### PREGUNTA 5
+
+¿Como pintarías un diagrama de puntos (o scatterplot) con ggplot con las siguientes características? - En el eje X la variable compacto - En el eje Y la variable area - Cada tipo de semilla debería tener un color diferente
+
+**Respuesta**:
+
+```{r}
+library(ggplot2) 
+ggplot(df_seeds, aes(x=compacto, y=area, color=tipo)) + geom_point() + xlab("Compacto") + ylab("Área") + labs(color='Tipo:')
+
+```
+
+#### PREGUNTA 6
+
+¿Qué hace la siguiente línea?:
+
+```{r}
+df_seeds |> mutate(is_kama = tipo=='Kama') -> df_seeds
+```
+
+**Respuesta**: Agrega una nueva columna al dataframe llamada "is_kama" que indica con un valor booleano si el tipo es Kama o no.
+
+#### PREGUNTA 7
+
+Vamos a dividir el conjunto de datos en test y training porque vamos a entrenar un modelo que me permita diferenciar si una semilla es de tipo Kama o no. ¿Por qué es aconsejable dividir el dataset en los grupos de train y test?
+
+```{r}
+set.seed(123) # Este set.seed hace que a todos nos generen los mismos número aleatorios
+idx <- sample(1:nrow(df_seeds), 0.7*nrow(df_seeds))
+df_seeds_train <- df_seeds[idx,]
+df_seeds_test <- df_seeds[-idx,]
+```
+
+**Respuesta**: Porque nos permite evaluar el rendimiento del modelo a partir de datos que no conoce, evitando un sobeajuste. Hacer esto nos da una idea más precisa del rendimiento del modelo en la práctica.
+
+PREGUNTA 8
+
+Vamos a crear un modelo para realizar una clasificación binaria, donde le pasaremos como entrada las columnas: area, perimetro, compacto, longitud, coeficient.asimetria y longitud.ranura
+
+¿Qué tipo de algoritmo o modelo debería usar?
+
+**Respuesta**: El algoritmo que deberíamos usar es la **regresión logística** porque queremos hacer una clasificación, no una predicción.
+
+#### PREGUNTA 9
+
+Crea un modelo que me permita clasificar si una semilla es de tipo Kama o no con las siguientes columnas: area, perimetro, compacto, longitud, coeficient.asimetria, longitud.ranura
+
+**Respuesta**:
+
+```{r}
+df_seeds_train$is_kama <- as.factor(df_seeds_train$is_kama)
+
+model <- glm(data=df_seeds_train, formula = is_kama ~ area + perimetro + compacto + longitud + coeficient.asimetria + longitud.ranura, family = binomial())
+summary(model)
+
+predictions <- predict(model, df_seeds_test, type='response')
+predictions
+
+```
+
+#### PREGUNTA 10
+
+Si usamos un umbral de 0 en la salida del modelo (lo que equivale a probabilidad de 0.5 cuando usamos el predict con type='response') ¿Cuales son los valores de precisión y exhausitividad?
+
+**Respuesta**.
+
+```{r}
+umbral <- 0.5
+confusion_matrix <- table(real=df_seeds_test$is_kama, pred=predictions > umbral)
+confusion_matrix
+
+paste("La precisión es:", confusion_matrix[2,2]/(confusion_matrix[1,2]+confusion_matrix[2,2]))
+paste("La exhaustividad es:",confusion_matrix[2,2]/(confusion_matrix[2,1]+confusion_matrix[2,2]))
+```
+
+#### PREGUNTA 11
+
+¿Qué están haciendo las siguientes líneas?
+
+```{r}
+set.seed(123)
+cl<-df_seeds |> select(area,perimetro,compacto,longitud,anchura,coeficient.asimetria,longitud.ranura) |> kmeans(3)
+table(real=df_seeds$tipo,cluster=cl$cluster)
+```
+
+**Respuesta**:
+
+Las líneas de código realizan un clustering k-means utilizando las columnas (o atributos): area, perimetro, compacto, longitud, anchura, coeficient.asimetria y longitud.ranura para generar tres grupos o clusters. Finalmente compara la variable "tipo" con otra encontrada por el algoritmo.
